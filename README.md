@@ -1,23 +1,3 @@
-<!--
-Use this template to structure your project's README.md file.
-Not all sections are required, though we recommend including as many as possible.
-
-* Project_Name (required)
-* Overview (required)
-  * What's new (optional)
-  * Prerequisites (optional)
-* Installation (required)
-  * Getting Started (optional)
-  * Running (optional)
-  * Examples (optional)
-  * Troubleshooting (optional)
-* Contributing (required)
-* License (required)
-* Additional Resources (required)
-
-Consider using a table of contents to make lengthy and complex README files easier to navigate.
--->
-
 # Viyactl
 
 ## Overview
