@@ -1,0 +1,261 @@
+package report
+
+import (
+	"github.com/goccy/go-yaml"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+// StripFormatting removes escape sequences from a string
+func StripFormatting(input string) string {
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	s := ansiRegex.ReplaceAllString(input, "")
+	return strings.ReplaceAll(s, "│", " ")
+}
+
+func GetYAML(viya any) string {
+	viyaYaml, err := yaml.MarshalWithOptions(viya, yaml.IndentSequence(true))
+	if err != nil {
+		return "error parsing yaml"
+	}
+	return string(viyaYaml)
+}
+
+templ Page(html HTMLReportDetails, diffs map[string]pair) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<title>viyactl environment report</title>
+			@Header()
+			<meta charset="UTF-8"/>
+			<style>
+* {
+  box-sizing: border-box;
+}
+.column {
+  float: left;
+  width: 50%;
+  padding: 5px;
+}
+
+.row::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+table {
+  width: 75%;
+  border-collapse: collapse;
+  font-size: 1em;
+  margin: 2em auto;
+  table-layout: fixed;
+}
+
+/* zebra striping */
+tr:nth-of-type(odd) {
+  background: #B7BBBF;
+}
+
+th, td {
+  border: 1px solid #999;
+  padding: 8px;
+  text-align: left;
+  background-color: green;
+}
+head {
+}
+.section-header {
+  background-color: #ddd;
+  font-weight: bold;
+  text-align: center;
+}
+.diff {
+    background-color: red;
+}
+.togglable {
+    display: none;
+}
+.diff-container {
+  display: flex;
+  margin: 20px auto;
+  border: 1px solid #d1d5da;
+  overflow-x: auto;
+	width:100%;
+}
+
+.diff-column {
+  flex: 0 0 auto; /* Prevent shrinking */
+  width:50%;
+  border-right: 1px solid #d1d5da;
+}
+
+pre {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto; /* Enable scrolling inside pre if needed */
+}
+    .line {
+      display: block;
+      padding: 2px 8px;
+    }
+    .add {
+      background-color: #e6ffed;
+      color: #22863a;
+    }
+    .del {
+      background-color: #ffeef0;
+      color: #b31d28;
+    }
+    .context {
+      background-color: #fff;
+      color: #24292e;
+    }
+    .diff-header{
+      width: 60%;
+      margin: 20px auto;
+    }
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  min-width: 800px;
+}
+
+.fixed-title-bar {
+  overflow: hidden;
+  background-color: #005686;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6em;
+  color: white;
+  display: flex;
+  align-items: center;
+  z-index: 100;
+}
+
+.fixed-title-bar img {
+  height: 4em;
+  padding: 1em;
+}
+
+.fixed-title-bar #radiance {
+  position: absolute;
+  right: -2em;
+  height: 10em;
+}
+
+.fixed-title-bar #page-title-wrapper p {
+  margin: 0;
+}
+
+.fixed-title-bar #page-title-wrapper #page-title {
+  font-size: 2em;
+  font-weight: bold;
+}
+
+.content {
+  margin-top: 8em;
+}
+
+</style>
+		</head>
+		<body>
+			@TitleBar()
+			<h1></h1>
+			@table_header(html.BaseName, html.Environments)
+			@allDiffs(html, diffs)
+		</body>
+		<script>
+function toggleOnly(fullId) {
+  const [rowname] = fullId.split('-togglable-');
+  const prefix = `${rowname}-togglable-`;
+
+  const target = document.getElementById(fullId);
+  const isCurrentlyVisible = target && !target.classList.contains('togglable');
+
+  // Hide all
+  const elements = document.querySelectorAll(`[id^="${prefix}"]`);
+  elements.forEach(el => el.classList.add('togglable'));
+
+  // If it was togglable before, show it
+  if (!isCurrentlyVisible && target) {
+    target.classList.remove('togglable');
+  }
+}
+</script>
+	</html>
+}
+
+templ allDiffs(html HTMLReportDetails, inputs map[string]pair) {
+	for typ, in := range inputs {
+		<div>
+			@generalDiffs(typ, html, in.diffs, in.base)
+		</div>
+	}
+}
+
+templ table_header(base string, environments []string) {
+	<table style="margin-top: 6.5em;">
+		<tr>
+			<th style="background-color: #f2f2f2;">Base ({ base })</th>
+			for _, env := range environments {
+				<th style="background-color: #f2f2f2;">{ env }</th>
+			}
+		</tr>
+	</table>
+}
+
+templ generalDiffs(configType string, report HTMLReportDetails, diffs []map[string][]Difference, base any) {
+	<table>
+		<tr>
+			<td class="section-header" colspan="1">Base { configType }</td>
+			<td class="section-header" colspan={ strconv.Itoa(len(report.Environments)) }>Other Environments { configType }</td>
+		</tr>
+		<tr>
+			<td class="diff" style="background-color: #FFD700;" onclick={ templ.JSFuncCall("toggleOnly", configType+"-togglable-base") }></td>
+			for i, d := range diffs {
+				if len(d) > 0 {
+					<td class="diff" onclick={ templ.JSFuncCall("toggleOnly", configType+"-togglable-"+strconv.Itoa(i), i) }></td>
+				} else {
+					<th></th>
+				}
+			}
+		</tr>
+	</table>
+	for i, _ := range report.Environments {
+		if i < len(diffs) {
+			<div id={ configType + "-togglable-" + strconv.Itoa(i) } class="togglable">
+				for path, diff := range diffs[i] {
+					<h3 class="diff-header">{ path }</h3>
+					<div class="diff-container">
+						<div class="diff-column">
+							<pre>
+								for _, d := range diff {
+									<span class="del">
+										{ StripFormatting(d.From) }
+									</span>
+								}
+							</pre>
+						</div>
+						<div class="diff-column">
+							<pre>
+								for _, d := range diff {
+									<span class="add">
+										{ StripFormatting(d.To) }
+									</span>
+								}
+							</pre>
+						</div>
+					</div>
+				}
+			</div>
+		}
+	}
+	<div id={ configType + "-togglable-base" } class="togglable">
+		<pre>
+			{ GetYAML(base) }
+		</pre>
+	</div>
+}
