@@ -1,0 +1,41 @@
+name: Code quality
+
+on:
+  push:
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up datetime file for build
+      run:  date +"%H:%M-%d-%m-%Y" > ./cmd/datetime.txt
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: 'go.mod'
+
+    - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+    - run: govulncheck ./...
+
+    - name: Run Code Quality Check
+      uses: golangci/golangci-lint-action@v9
+      with:
+        version: v2.6
+
+    - name: Build
+      if: success() || failure()
+      run: go build -v ./...
+
+    - name: Test
+      if: success() || failure()
+      run: go test -v ./...
