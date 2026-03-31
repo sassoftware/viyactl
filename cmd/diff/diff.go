@@ -1,3 +1,5 @@
+// Copyright © 2026, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 // Package diff is the spf13/Cobra handler for the diff command
 package diff
 
