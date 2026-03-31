@@ -4,7 +4,6 @@ package configtypes
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,8 +14,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -96,34 +95,68 @@ func (c *Configs) Write(token environment.Token, sasEndpoint string, other any) 
 	return configs(token, sasEndpoint, *c, *otherConfigs)
 }
 
+type noSciFloat float64
+
+func (f noSciFloat) MarshalYAML() ([]byte, error) {
+	// 'f' format = no scientific notation, -1 precision = shortest representation
+	s := strconv.FormatFloat(float64(f), 'f', -1, 64)
+	return []byte(s), nil
+}
+
+func sanitiseDefinitions(v any) any {
+	switch val := v.(type) {
+	case float64:
+		return noSciFloat(val)
+	case float32:
+		return noSciFloat(float64(val))
+	case map[string]any:
+		out := make(map[string]any, len(val))
+		for k, v2 := range val {
+			if k == "id" {
+				continue
+			}
+			out[k] = sanitiseDefinitions(v2)
+		}
+		return out
+	case []any:
+		out := make([]any, len(val))
+		for i, v2 := range val {
+			out[i] = sanitiseDefinitions(v2)
+		}
+		return out
+	case []map[string]any:
+		out := make([]any, len(val))
+		for i, v2 := range val {
+			out[i] = sanitiseDefinitions(v2)
+		}
+		return out
+	default:
+		return v
+	}
+}
+
 // YAML returns a YAML representation of configs
 func (c *Configs) YAML() ([]byte, error) {
-	// Needed as goccy/go-yaml changes some values from ints to strings in scientific notation, which is incompatible with SAS Viya
-	configsBuffer := new(bytes.Buffer)
-	enc := &ConfigEncoder{
-		writer:             configsBuffer,
-		opts:               []yaml.EncodeOption{yaml.IndentSequence(true), yaml.AutoInt(), yaml.Flow(true), yaml.UseSingleQuote(true)},
-		customMarshalerMap: map[reflect.Type]func(context.Context, any) ([]byte, error){},
-		line:               1,
-		column:             1,
-		offset:             0,
-		indentNum:          DefaultIndentSpaces,
-		anchorRefToName:    make(map[uintptr]string),
-		anchorNameMap:      make(map[string]struct{}),
-		aliasRefToName:     make(map[uintptr]string),
+	sanitised := make(Configs, len(*c))
+	for k, inner := range *c {
+		sanitised[k] = make(map[string]Definitions, len(inner))
+		for k2, def := range inner {
+			sanitised[k][k2] = sanitiseDefinitions(def)
+		}
 	}
 
-	cons := struct {
+	configWithHeader := struct {
 		C Configs `yaml:"configs"`
 	}{
-		C: *c,
+		C: sanitised,
 	}
 
-	err := enc.Encode(cons)
-	// Needed to patch up some multi-line comments until https://github.com/goccy/go-yaml/pull/759 is merged
-	configsBuffer = environment.PatchBuffer(configsBuffer)
-	b := slices.Concat([]byte("---\n"), configsBuffer.Bytes())
-	return b, err
+	raw, err := yaml.MarshalWithOptions(configWithHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	return slices.Concat([]byte("---\n"), raw), nil
 }
 
 // Filter takes a file, reads it and filters the struct inplace
@@ -235,13 +268,6 @@ func (i *item) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		delete(raw, "links")
-	}
-
-	if v, ok := raw["id"]; ok {
-		if err := json.Unmarshal(v, &i.ID); err != nil {
-			return err
-		}
-		delete(raw, "id")
 	}
 
 	if v, ok := raw["metadata"]; ok {
@@ -516,8 +542,12 @@ func configs(token environment.Token, sasEndpoint string, viya, local Configs) e
 							}
 						}
 					}
+					props["id"] = existing["id"]
 
-					if !reflect.DeepEqual(existing, props) {
+					a, _ := json.Marshal(existing)
+					b, _ := json.Marshal(props)
+					equal := string(a) == string(b)
+					if !equal {
 						if _, found := existing["id"]; !found {
 							zap.S().Infow(cmd.Symbols["notify"]+"unable to get id", "service", service, "definition", definition)
 							continue
@@ -591,7 +621,7 @@ func configs(token environment.Token, sasEndpoint string, viya, local Configs) e
 		if err != nil {
 			return fmt.Errorf("unable to write configs: %s", err)
 		}
-		if res.StatusCode == 400 {
+		if res.StatusCode != 200 && res.StatusCode != 201 && res.StatusCode != 204 {
 			return cmd.ExitWithHTTPError(res, "20{0|1|4}", "https://developer.sas.com/rest-apis/configuration/createConfigurations#responses")
 		}
 
@@ -630,7 +660,7 @@ func configs(token environment.Token, sasEndpoint string, viya, local Configs) e
 			return fmt.Errorf("unable to write configs: %s", err.Error())
 		}
 		zap.S().Infow("Finished writing configs", "url", sasEndpoint)
-		if res.StatusCode == 400 {
+		if res.StatusCode != 200 && res.StatusCode != 201 && res.StatusCode != 204 {
 			return cmd.ExitWithHTTPError(res, "20{0|1|4}", "https://developer.sas.com/rest-apis/configuration/patchConfigurations#responses")
 		}
 		zap.S().Infow("Finished patching configs", "sasEndpoint", sasEndpoint)
