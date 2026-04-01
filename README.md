@@ -7,11 +7,11 @@ It lets users save configurations from a SAS Viya environment, and then compare 
 
 This allows the following patterns:
 - Health checking
-  Comparing configuration between multiple environments
+  - Comparing configuration between multiple environments
 - Rollback
-  Saving configuration, then if future changes are suboptimal Viyactl can apply this old configuration, rolling back to a previous state
+  - Saving configuration, then if future changes are suboptimal Viyactl can apply this old configuration, rolling back to a previous state
 - GitOps
-  Saving configuration in a Git repository, then using CICD platforms like GitHub Actions to apply the configuration whenever it is changed
+  - Saving configuration in a Git repository, then using CICD platforms like GitHub Actions to apply the configuration whenever it is changed
 
 
 ## Installation
@@ -32,6 +32,9 @@ Built binaries can be downloaded from https://github.com/sassoftware/viyactl/rel
 To get started you can follow the [quickstart guide](./website/docs/README.md)
 
 Viyactl also has help messages for all commands, simply type `viyactl --help` or `viyactl $COMMAND --help`
+
+#### Autocompletion
+Viyactl is built with cobra which generates scripts for [shell completion](https://cobra.dev/docs/how-to-guides/shell-completion/)
 
 ## Contributing
 Maintainers are accepting patches and contributions to this project.
