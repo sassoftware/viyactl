@@ -1,6 +1,8 @@
 module github.com/sassoftware/viyactl
 
-go 1.25.8
+go 1.25.9
+
+ignore ./website
 
 require (
 	github.com/a-h/templ v0.3.906
