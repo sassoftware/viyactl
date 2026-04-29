@@ -2,7 +2,6 @@ version: "2"
 linters:
   enable:
   - revive
-  warn-unused: true
   settings:
     revive:
       rules:
