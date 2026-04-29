@@ -16,7 +16,7 @@
 !go.mod
 !*.templ
 !.goreleaser.yaml
-!.golangcii.yaml
+!.golangci.yaml
 
 
 # ...even if they are in subdirectories

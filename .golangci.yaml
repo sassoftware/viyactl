@@ -1,0 +1,24 @@
+version: "2"
+linters:
+  enable:
+  - revive
+  settings:
+    revive:
+      rules:
+        - name: package-comments
+          # SAS expects Copyright headers rather than Revive style package comments
+          disabled: true
+
+formatters:
+  enable:
+  - gofumpt
+  settings:
+    gofumpt:
+      extra-rules: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
