@@ -11,7 +11,7 @@ const config: Config = {
   url: "https://sassoftware.github.io",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: "/<projectName>/",
+  baseUrl: "/viyactl/",
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -61,7 +61,7 @@ const config: Config = {
       },
       items: [
         {
-          href: "https://github.com/sassoftware/<projectName>",
+          href: "https://github.com/sassoftware/viyactl",
           className: "header-github-link",
           title: "GitHub repository",
           position: "right",
