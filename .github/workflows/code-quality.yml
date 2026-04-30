@@ -20,7 +20,7 @@ jobs:
       run:  date +"%H:%M-%d-%m-%Y" > ./cmd/datetime.txt
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v6
       with:
         go-version-file: 'go.mod'
 
