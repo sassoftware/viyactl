@@ -17,10 +17,12 @@
 !*.templ
 !.goreleaser.yaml
 !.golangci.yaml
+!*.yml
 
 
 # ...even if they are in subdirectories
 !*/
+
 
 # Ignore any content in release binaries
 dist/
